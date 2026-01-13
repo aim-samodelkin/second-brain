@@ -1,0 +1,95 @@
+# Second Brain - Caddy Configuration
+# Automatic HTTPS with Let's Encrypt
+
+{
+    # Email for Let's Encrypt notifications
+    email your-email@example.com
+
+    # Uncomment for testing (uses staging certificates)
+    # acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
+}
+
+# ==============================================
+# CouchDB - for Obsidian Livesync
+# ==============================================
+{$DOMAIN} {
+    log {
+        output stdout
+        format console
+    }
+
+    # CORS headers for Obsidian LiveSync
+    # Note: When using credentials, origin cannot be *, must be specific
+    @cors_preflight {
+        method OPTIONS
+    }
+    
+    @cors_request {
+        header Origin *
+    }
+    
+    header @cors_request {
+        Access-Control-Allow-Origin "{http.request.header.Origin}"
+        Access-Control-Allow-Methods "GET, PUT, POST, HEAD, DELETE, OPTIONS"
+        Access-Control-Allow-Headers "accept, authorization, content-type, origin, referer, x-requested-with"
+        Access-Control-Allow-Credentials "true"
+        Access-Control-Expose-Headers "content-type, cache-control, accept-ranges, etag, server, x-couch-request-id, x-couch-update-newrev, x-couchdb-body-time"
+        defer
+    }
+
+    # Handle OPTIONS preflight requests
+    handle @cors_preflight {
+        header {
+            Access-Control-Allow-Origin "{http.request.header.Origin}"
+            Access-Control-Allow-Methods "GET, PUT, POST, HEAD, DELETE, OPTIONS"
+            Access-Control-Allow-Headers "accept, authorization, content-type, origin, referer, x-requested-with"
+            Access-Control-Allow-Credentials "true"
+            Access-Control-Max-Age "3600"
+        }
+        respond 204
+    }
+
+    reverse_proxy couchdb:5984 {
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+        
+        # Remove CORS headers from CouchDB to avoid duplicates
+        # We handle CORS in Caddy instead
+        header_down -Access-Control-Allow-Origin
+        header_down -Access-Control-Allow-Methods
+        header_down -Access-Control-Allow-Headers
+        header_down -Access-Control-Allow-Credentials
+        header_down -Access-Control-Expose-Headers
+        
+        # Normalize status codes for Obsidian LiveSync compatibility
+        # CouchDB returns 201 Created, but LiveSync expects 200 OK
+        @created status 201
+        handle_response @created {
+            copy_response_headers
+            respond {http.reverse_proxy.body} 200
+        }
+    }
+
+    encode gzip zstd
+}
+
+# ==============================================
+# API - for Telegram bot and web access
+# ==============================================
+{$API_DOMAIN} {
+    log {
+        output stdout
+        format console
+    }
+
+    reverse_proxy notes-api:8000 {
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+
+    encode gzip zstd
+}

@@ -1,0 +1,113 @@
+version: '3.8'
+
+services:
+  # ============================================
+  # COUCHDB - Database for Obsidian Livesync
+  # ============================================
+  couchdb:
+    image: couchdb:3.3.3
+    container_name: secondbrain-couchdb
+    restart: unless-stopped
+    environment:
+      - COUCHDB_USER=${COUCHDB_USER}
+      - COUCHDB_PASSWORD=${COUCHDB_PASSWORD}
+    volumes:
+      - ./couchdb/data:/opt/couchdb/data
+      - ./couchdb/config/local.ini:/opt/couchdb/etc/local.d/local.ini
+    networks:
+      - secondbrain-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "-u", "${COUCHDB_USER}:${COUCHDB_PASSWORD}", "http://localhost:5984/_up"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  # ============================================
+  # NOTES-API - FastAPI server + Telegram Bot
+  # ============================================
+  notes-api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: secondbrain-api
+    restart: unless-stopped
+    environment:
+      - COUCHDB_URL=http://couchdb:5984
+      - COUCHDB_USER=${COUCHDB_USER}
+      - COUCHDB_PASSWORD=${COUCHDB_PASSWORD}
+      - COUCHDB_DATABASE=${COUCHDB_DATABASE}
+      - API_SECRET_KEY=${API_SECRET_KEY}
+      - NOTES_API_TOKEN=${NOTES_API_TOKEN}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_ADMIN_ID=${TELEGRAM_ADMIN_ID}
+      - QDRANT_URL=${QDRANT_URL:-http://qdrant:6333}
+      - QDRANT_COLLECTION=${QDRANT_COLLECTION:-second_brain_notes}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - COHERE_API_KEY=${COHERE_API_KEY}
+      - DEFAULT_LLM_PROVIDER=${DEFAULT_LLM_PROVIDER:-claude}
+      - OPENAI_EMBEDDING_MODEL=${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
+      - EMBEDDING_DIMENSIONS=${EMBEDDING_DIMENSIONS:-1536}
+    depends_on:
+      couchdb:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - secondbrain-network
+
+  # ============================================
+  # QDRANT - Vector Database for Semantic Search
+  # ============================================
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: secondbrain-qdrant
+    restart: unless-stopped
+    ports:
+      - "6333:6333"  # HTTP API
+      - "6334:6334"  # gRPC (optional)
+    volumes:
+      - ./qdrant/storage:/qdrant/storage
+    networks:
+      - secondbrain-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  # ============================================
+  # CADDY - Reverse Proxy with automatic SSL
+  # ============================================
+  caddy:
+    image: caddy:2-alpine
+    container_name: secondbrain-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      - DOMAIN=${DOMAIN}
+      - API_DOMAIN=${API_DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./caddy/data:/data
+      - ./caddy/config:/config
+    depends_on:
+      - couchdb
+      - notes-api
+    networks:
+      - secondbrain-network
+
+networks:
+  secondbrain-network:
+    driver: bridge

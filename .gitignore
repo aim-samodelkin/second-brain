@@ -1,0 +1,49 @@
+# Environment and secrets
+.env
+*.env.local
+
+# CouchDB data
+couchdb/data/
+
+# Caddy data (SSL certificates)
+caddy/data/
+caddy/config/
+
+# Qdrant vector database
+qdrant/storage/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+.pytest_cache/
+htmlcov/
+.coverage
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Backups
+*.tar.gz
+backups/
+
+# Craft export (already imported)
+craft_export/
+
+# Migration logs
+migration.log
