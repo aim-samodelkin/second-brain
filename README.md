@@ -1,6 +1,12 @@
 # Second Brain
 
-Self-hosted система управления заметками на базе Obsidian с синхронизацией через CouchDB, REST API и Telegram-ботом.
+[![GitHub](https://img.shields.io/badge/GitHub-Repository-blue?logo=github)](https://github.com/aim-samodelkin/second-brain)
+[![Python](https://img.shields.io/badge/Python-3.11-blue?logo=python)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.109-green?logo=fastapi)](https://fastapi.tiangolo.com/)
+[![Docker](https://img.shields.io/badge/Docker-Compose-blue?logo=docker)](https://www.docker.com/)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+🧠 Self-hosted система управления заметками на базе Obsidian с синхронизацией через CouchDB, REST API и Telegram-ботом с AI-агентами.
 
 ## Возможности
 
@@ -58,7 +64,7 @@ ssh root@IP_СЕРВЕРА
 
 ```bash
 # Скачать и запустить скрипт настройки
-curl -O https://raw.githubusercontent.com/YOUR_REPO/second-brain/main/scripts/setup-server.sh
+curl -O https://raw.githubusercontent.com/aim-samodelkin/second-brain/main/scripts/setup-server.sh
 bash setup-server.sh
 ```
 
